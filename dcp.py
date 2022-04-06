@@ -42,8 +42,9 @@ def transform_point_cloud(point_cloud, rotation, translation):
     else:
         rot_mat = rotation
     rot_mat = torch.tensor(rot_mat, dtype=torch.float32)
+    translation = torch.tensor(translation, dtype=torch.float32)
     point_cloud = torch.tensor(point_cloud, dtype=torch.float32)
-    return torch.matmul(rot_mat.cuda(), point_cloud.cuda()) + translation.unsqueeze(2)
+    return torch.matmul(rot_mat.cuda(), point_cloud.cuda()) + translation.cuda().unsqueeze(2)
 
 
 def npmat2euler(mats, seq='zyx'):

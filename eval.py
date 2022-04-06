@@ -128,7 +128,7 @@ parser.add_argument('--model', type=str, default='dcp', metavar='N',
                     choices=['dcp'], help='Model to use, [dcp]')
 parser.add_argument('--emb_nn', type=str, default='dgcnn', metavar='N',
                     choices=['pointnet', 'dgcnn'], help='Embedding nn to use, [pointnet, dgcnn]')
-parser.add_argument('--pointer', type=str, default='transformer', metavar='N',
+parser.add_argument('--pointer', type=str, default='identity', metavar='N',
                     choices=['identity', 'transformer'], help='Attention-based pointer generator to use, [identity, transformer]')
 parser.add_argument('--head', type=str, default='svd', metavar='N',
                     choices=['mlp', 'svd', ], help='Head to use, [mlp, svd]')
@@ -248,16 +248,21 @@ for i in range(len(flow_files)):
     # [0., 0., 1]
     rotation_ab_pred=rotation_ab_pred.cpu().detach().numpy()
     rotation_ba_pred=rotation_ba_pred.cpu().detach().numpy()
+
     rot = torch.tensor([[[np.cos(np.arccos(rotation_ab_pred[0][0][0])/2), -np.sin(np.arcsin(-rotation_ab_pred[0][0][1])/2), 0.],
          [np.sin(np.arcsin(rotation_ab_pred[0][1][0])/2), np.cos(np.arccos(rotation_ab_pred[0][1][1])/2), 0.],
          [0., 0., 1.]]])
     rot_ba = torch.tensor([[[np.cos(np.arccos(rotation_ba_pred[0][0][0])/2), -np.sin(np.arcsin(-rotation_ba_pred[0][0][1])/2), 0.],
          [np.sin(np.arcsin(rotation_ba_pred[0][1][0])/2), np.cos(np.arccos(rotation_ba_pred[0][1][1])/2), 0.],
          [0., 0., 1.]]])
-    
+
+    translation_ab_pred = torch.where(abs(translation_ab_pred)>1, translation_ab_pred/10, translation_ab_pred)
+    translation_ab_pred = translation_ab_pred/10
+    translation_ba_pred = torch.where(abs(translation_ba_pred)>1, translation_ba_pred/10, translation_ba_pred)
+    translation_ba_pred = translation_ba_pred/10
+
     print('the rigid transformation matrix is: ', rot, translation_ab_pred*0.5)
     # print('the rigid transformation matrix is: ', rot_ba, translation_ba_pred*0.5)
-    
     fused_pc = transform_point_cloud(next(iter(pointcloud1)), rot, translation_ab_pred*0.5)
     # fused_pc = transform_point_cloud(next(iter(pointcloud2)), rot_ba, translation_ba_pred*0.5)
 
@@ -278,5 +283,11 @@ for i in range(len(flow_files)):
     print('this CD:{:.3}, CD1:{:.3}, CD2:{:.3}'.format(cd, cd1, cd2))
     print('avg CD:{:.3}, CD1:{:.3}, CD2:{:.3}'.format(cd_avg/(i+1), cd1_avg/(i+1), cd2_avg/(i+1)))
     torch.cuda.empty_cache()
+    mlab.figure(bgcolor=(1,1,1))
+    mlab.points3d(mid_pc[:, 0], mid_pc[:, 1], mid_pc[:, 2], color=(0, 1, 0), scale_factor=point_size)
+    mlab.points3d(fused_pc[0].T.cpu().detach().numpy()[:, 0], fused_pc[0].T.cpu().detach().numpy()[:, 1], fused_pc[0].T.cpu().detach().numpy()[:, 2], color=(1, 0, 0), scale_factor=point_size)
+    # mlab.points3d(warped_points2_xyz[:, 0], warped_points2_xyz[:, 1], warped_points2_xyz[:, 2], color=(1, 0, 0), scale_factor=point_size)
+    mlab.view()
+    input()
     time.sleep(30)
 
