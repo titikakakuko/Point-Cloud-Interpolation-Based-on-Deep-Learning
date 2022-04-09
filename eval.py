@@ -159,7 +159,8 @@ FLAGS = parser.parse_args()
 data1 = np.load(FLAGS.filename1)
 data2 = np.load(FLAGS.filename2)
 
-flow_files = sorted(glob.glob('E:/fyp/dataset/output/*.npz'))
+# E:\fyp\Point-Cloud-Interpolation-Based-on-Deep-Learning\kitti_flow\000002_back.npz
+flow_files = sorted(glob.glob('kitti_flow/*.npz'))
 cd_avg=0
 cd1_avg=0
 cd2_avg=0
@@ -231,7 +232,7 @@ for i in range(len(flow_files)):
     # fused_points = fusion(warped_points1_xyz, warped_points2_xyz, ini_color, end_color, k, 0.5)
 
     net = DCP(FLAGS).cuda()
-    model_path = 'E:/fyp/meteornet-master/scene_flow_kitti/dcp_model/dcp_v2.t7'
+    model_path = 'dcp_model/dcp_v1.t7'
     if not os.path.exists(model_path):
         print("can't find pretrained model")
     net.load_state_dict(torch.load(model_path), strict=False)
@@ -242,7 +243,13 @@ for i in range(len(flow_files)):
     # get the rigid transformation matrix 
     mse_ab, mae_ab, mse_ba, mae_ba, rotation_ab_pred, translation_ab_pred, \
            rotation_ba_pred, translation_ba_pred, rotation_loss, translation_loss, cycle_loss = get_trans_matrix(net,pointcloud1, pointcloud2)
-
+    
+    
+    translation_ab_pred = torch.where(abs(translation_ab_pred)>1, translation_ab_pred/10, translation_ab_pred)
+    translation_ab_pred = translation_ab_pred/10
+    translation_ba_pred = torch.where(abs(translation_ba_pred)>1, translation_ba_pred/10, translation_ba_pred)
+    translation_ba_pred = translation_ba_pred/10
+    
     # [cos, -sin, 0.],
     # [sin, cos, 0.],
     # [0., 0., 1]
@@ -255,11 +262,6 @@ for i in range(len(flow_files)):
     rot_ba = torch.tensor([[[np.cos(np.arccos(rotation_ba_pred[0][0][0])/2), -np.sin(np.arcsin(-rotation_ba_pred[0][0][1])/2), 0.],
          [np.sin(np.arcsin(rotation_ba_pred[0][1][0])/2), np.cos(np.arccos(rotation_ba_pred[0][1][1])/2), 0.],
          [0., 0., 1.]]])
-
-    translation_ab_pred = torch.where(abs(translation_ab_pred)>1, translation_ab_pred/10, translation_ab_pred)
-    translation_ab_pred = translation_ab_pred/10
-    translation_ba_pred = torch.where(abs(translation_ba_pred)>1, translation_ba_pred/10, translation_ba_pred)
-    translation_ba_pred = translation_ba_pred/10
 
     print('the rigid transformation matrix is: ', rot, translation_ab_pred*0.5)
     # print('the rigid transformation matrix is: ', rot_ba, translation_ba_pred*0.5)
